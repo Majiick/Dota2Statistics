@@ -42,7 +42,6 @@ def connect(params):
 
 
 class Matches:
-
     def __init__(self, starting_seq, api_key):
         self.matches = list()
         self.nextMatch = 0
@@ -85,7 +84,7 @@ class Matches:
 
 
 def save_to_disk(data):
-    conn, cur = database.setup()
+    conn, cur = database.get()
 
     for x in data:
         cur.execute("INSERT OR IGNORE INTO accounts VALUES ({})".format(x))
