@@ -5,7 +5,26 @@ import json
 import time
 import threading
 import database
-from Info import *
+from info import *
+
+
+class PlayerCollectionCounter:
+    lock = threading.Lock()
+
+    def __init__(self):
+        self.players = 0
+        self.timeStarted = time.time() - 1  # So we don't get ZeroDivisionError
+        self.print_collection_rate()
+
+    def increment(self, amount):
+        with self.lock:
+            self.players += amount
+
+    def print_collection_rate(self):
+        threading.Timer(1.0, self.print_collection_rate).start()
+
+        print("Average collection rate: {}/sec".format(int(self.players / (time.time() - self.timeStarted))))
+        print("{} seconds since start".format(int(time.time() - self.timeStarted)))
 
 
 class AccountIDsBuffer:
@@ -30,10 +49,10 @@ class AccountIDsBuffer:
         self.save()
 
 
-def connect(params):
+def connect(url, params):
     try:
-        with urllib.request.urlopen(GET_MATCH_HISTORY_SEQUENCE_URL + "?" + params) as url:
-            return url.read().decode("UTF-8")
+        with urllib.request.urlopen(url + "?" + params) as link:
+            return link.read().decode("UTF-8")
     except urllib.error.HTTPError as err:
         if err.code != 429 and err.code != 503 and err.code != 500:
             raise urllib.error.HTTPError
@@ -68,12 +87,13 @@ class Matches:
     def request_matches(self):
         print("Sequence#: {}".format(self.last_seq_requested))
         time.sleep(1)
+
         params = urllib.parse.urlencode({'key': self.api_key, 'start_at_match_seq_num': self.last_seq_requested})
 
-        response = connect(params)
+        response = connect(GET_MATCH_HISTORY_SEQUENCE_URL, params)
         while response is None:
             time.sleep(10)
-            response = connect(params)
+            response = connect(GET_MATCH_HISTORY_SEQUENCE_URL, params)
 
         data = json.loads(response)
 
@@ -87,7 +107,7 @@ def save_to_disk(data):
     conn, cur = database.get()
 
     for x in data:
-        cur.execute("INSERT OR IGNORE INTO accounts VALUES ({})".format(x))
+        cur.execute("INSERT OR IGNORE INTO accounts (id) VALUES ({})".format(x))
 
     conn.commit()
 
@@ -101,13 +121,17 @@ def collect(starting_seq, api_key):
                 for player in match["players"]:
                     if "account_id" in player:
                         account_ids.add(player["account_id"])
+                        playerCounter.increment(1)
 
     except KeyboardInterrupt:
         account_ids.save()
 
+
 if __name__ == "__main__":
-    for i in range(1, 5):  # 1,5
-        key = API_KEYS[(i-1) % len(API_KEYS)]
-        t = threading.Thread(target=collect, args=(i*500000000, key), name=key)
+    playerCounter = PlayerCollectionCounter()
+
+    for i in range(1, 25):  # 1,5
+        key = get_key()
+        t = threading.Thread(target=collect, args=(i*100000000, key), name=key)
         t.start()
         time.sleep(1/6)  # so they're out of sync
