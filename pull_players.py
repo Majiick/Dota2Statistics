@@ -66,6 +66,7 @@ class AccountIDsBuffer:
             cur.execute("INSERT OR IGNORE INTO accounts (id) VALUES ({})".format(x))
 
         conn.commit()
+        conn.close()
 
     def __enter__(self):
         return self

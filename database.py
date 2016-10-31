@@ -24,6 +24,7 @@ def setup():
     with open('setup_tables.sql') as fp:
         cur.executescript(fp.read())
 
+    conn.commit()
     return conn, cur
 
 setup()
