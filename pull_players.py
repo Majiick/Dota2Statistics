@@ -1,14 +1,23 @@
-# noinspection PyUnresolvedReferences
-import urllib.request
+"""Retrieves account ids from Valve's DOTA2 API through GetMatchHistoryBySequenceNum.
+
+This module retrieves account ids by retrieving matches from GetMatchHistoryBySequenceNum and
+then retrieving players from the retrieved matches. The account_ids are put into a database.
+
+"""
+
 import urllib.parse
 import json
 import time
 import threading
 import database
+from connection import connect
 from info import *
 
 
 class PlayerCollectionCounter:
+    """Thread-safe class to keep count of the amount of players collected and print the average collection rate.
+    """
+    PRINT_FREQ = 1.0
     lock = threading.Lock()
 
     def __init__(self):
@@ -16,31 +25,47 @@ class PlayerCollectionCounter:
         self.timeStarted = time.time() - 1  # So we don't get ZeroDivisionError
         self.print_collection_rate()
 
-    def increment(self, amount):
+    def increment(self, amount: int):
         with self.lock:
             self.players += amount
 
     def print_collection_rate(self):
-        threading.Timer(1.0, self.print_collection_rate).start()
+        threading.Timer(self.PRINT_FREQ, self.print_collection_rate).start()
 
         print("Average collection rate: {}/sec".format(int(self.players / (time.time() - self.timeStarted))))
         print("{} seconds since start".format(int(time.time() - self.timeStarted)))
 
 
 class AccountIDsBuffer:
-    def __init__(self, size):
+    """A buffer object to store account_ids in memory and write them into the database once we have enough account_ids.
+    """
+    def __init__(self, size: int):
         self.account_ids = set()
         self.size = size
 
-    def add(self, x):
-        self.account_ids.add(x)
+    def add(self, id_: int):
+        self.account_ids.add(id_)
 
         if len(self.account_ids) > self.size:
             self.save()
 
     def save(self):
-        save_to_disk(self.account_ids)
+        self.save_to_disk(self.account_ids)
         self.account_ids.clear()
+
+    @staticmethod
+    def save_to_disk(data: set) -> None:
+        """Saves a set of account_ids to the database.
+
+        Args:
+            data: The set of account_ids to save.
+        """
+        conn, cur = database.get()
+
+        for x in data:
+            cur.execute("INSERT OR IGNORE INTO accounts (id) VALUES ({})".format(x))
+
+        conn.commit()
 
     def __enter__(self):
         return self
@@ -49,42 +74,47 @@ class AccountIDsBuffer:
         self.save()
 
 
-def connect(url, params):
-    try:
-        with urllib.request.urlopen(url + "?" + params) as link:
-            return link.read().decode("UTF-8")
-    except urllib.error.HTTPError as err:
-        if err.code != 429 and err.code != 503 and err.code != 500:
-            raise urllib.error.HTTPError
-        print("Valve returned error {}.".format(err.code))
-        return None
-
-
 class Matches:
-    def __init__(self, starting_seq, api_key):
+    """Provides matches by pulling them from the Valve API.
+    """
+
+    def __init__(self, starting_seq: int, api_key: str):
+        """
+        Args:
+            starting_seq: The starting match sequence to collect from.
+            api_key: The API key to use.
+        """
         self.matches = list()
-        self.nextMatch = 0
+        self._nextMatch = 0
         self.last_seq_requested = starting_seq
         self.api_key = api_key
 
-    def next(self, n):
+    def next(self, n: int) -> dict:
+        """Generator to yield the next match.
+        Args:
+            n: How many matches to yield.
+        Yields:
+            Yields a match dict according to the match JSON structure.
+        """
         i = 0
 
         while i < n:
-            if self.nextMatch > len(self.matches) - 1:
+            if self._nextMatch > len(self.matches) - 1:
                 self.matches.clear()
-                self.nextMatch = 0
-                self.request_matches()
+                self._nextMatch = 0
+                self._request_matches()
 
-            yield self.matches[self.nextMatch]
+            yield self.matches[self._nextMatch]
             i += 1
-            self.nextMatch += 1
+            self._nextMatch += 1
 
     @staticmethod
-    def get_last_seq_num(data):
+    def get_last_seq_num(data: dict):
         return data["result"]["matches"][len(data["result"]["matches"]) - 1]["match_seq_num"]
 
-    def request_matches(self):
+    def _request_matches(self) -> None:
+        """Requests (500) matches from Valve and updates self.matches with the retrieved matches.
+        """
         print("Sequence#: {}".format(self.last_seq_requested))
         time.sleep(1)
 
@@ -103,35 +133,36 @@ class Matches:
         self.last_seq_requested = self.get_last_seq_num(data)
 
 
-def save_to_disk(data):
-    conn, cur = database.get()
+def collect(starting_seq: int, api_key: str, player_counter: PlayerCollectionCounter = None) -> None:
+    """This function will collect account ids until interrupted by a KeyboardInterrupt.
 
-    for x in data:
-        cur.execute("INSERT OR IGNORE INTO accounts (id) VALUES ({})".format(x))
-
-    conn.commit()
-
-
-def collect(starting_seq, api_key):
-    y = Matches(starting_seq, api_key)
+    Args:
+        starting_seq: The starting match sequence to collect from.
+        api_key: The API key to use.
+        player_counter: Counter object to count the amount of players retrieved. Optional.
+    """
+    match_retriever = Matches(starting_seq, api_key)
 
     try:
         with AccountIDsBuffer(1000) as account_ids:
-            for match in y.next(100000):
+            for match in match_retriever.next(100000):
                 for player in match["players"]:
                     if "account_id" in player:
                         account_ids.add(player["account_id"])
-                        playerCounter.increment(1)
+                        player_counter.increment(1)
 
     except KeyboardInterrupt:
         account_ids.save()
 
 
-if __name__ == "__main__":
-    playerCounter = PlayerCollectionCounter()
+def main():
+    pc = PlayerCollectionCounter()
 
-    for i in range(1, 25):  # 1,5
+    for i in range(1, 25):  # Create 24 threads to collect players.
         key = get_key()
-        t = threading.Thread(target=collect, args=(i*100000000, key), name=key)
+        t = threading.Thread(target=collect, args=(i * 100000000, key), kwargs={'player_counter': pc}, name=key)
         t.start()
-        time.sleep(1/6)  # so they're out of sync
+        time.sleep(1 / 6)  # So requests are out of sync.
+
+if __name__ == "__main__":
+    main()
