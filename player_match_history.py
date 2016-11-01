@@ -13,14 +13,6 @@ from typing import List
 import threading
 
 
-class PlayerMatchCombo:
-    def __init__(self, match, player, player_slot, hero_id):
-        self.match = match
-        self.player = player
-        self.player_slot = player_slot
-        self.hero_id = hero_id
-
-
 class IDRetriever:
     """Thread-safe class to retrieve unchecked player account_ids from the database.
     """
@@ -60,22 +52,28 @@ class IDRetriever:
             return id_
 
 
-def save_to_disk(matches: List[dict], players: List[PlayerMatchCombo], account_id: int):
+def save_to_disk(matches: List[dict], account_id: int):
     """Saves the set of matches to the database.
 
     Args:
         matches: The list of MATCH dictionaries. The dictionaries adhere to the JSON structure.
-        players: The list of players and the match id they've played.
         account_id: The account id that was used to pull match history from.
     """
     conn, cur = database.get()
 
-    for x in matches:
-        cur.execute('INSERT OR IGNORE INTO matches VALUES (?,?,?,?,?)', (x["match_id"], x["match_seq_num"], x["start_time"], x["lobby_type"], account_id))
+    for match in matches:
+        cur.execute('INSERT OR IGNORE INTO matches VALUES (?,?,?,?,?)',
+                    (match["match_id"], match["match_seq_num"], match["start_time"], match["lobby_type"], account_id))
         cur.execute('UPDATE Accounts SET checked=1 WHERE id=?', (account_id,))
 
-    for x in players:
-        cur.execute('INSERT OR IGNORE INTO player_match VALUES (?,?,?,?)', (x.player, x.match, x.player_slot, x.hero_id))
+        for player in match["players"]:
+            try:
+                account_id = player["account_id"]
+            except KeyError:
+                account_id = 0
+
+            cur.execute('INSERT OR IGNORE INTO player_match VALUES (?,?,?,?)',
+                        (account_id, match["match_id"], player["player_slot"], player["hero_id"]))
 
     conn.commit()
     conn.close()
@@ -123,21 +121,6 @@ def get_match_batch(last_requested_match: int, id_: int, api_key: str) -> List[d
     return response
 
 
-def extract_players(matches: List[dict]) -> List[PlayerMatchCombo]:
-    combos = list()
-
-    for match in matches:
-        match_id = match["match_id"]
-
-        for player in match["players"]:
-            if "account_id" in player:
-                combos.append(PlayerMatchCombo(match_id, player["account_id"], player["player_slot"], player["hero_id"]))
-            else:
-                combos.append(PlayerMatchCombo(match_id, 0, player["player_slot"], player["hero_id"]))
-
-    return combos
-
-
 def get_matches(id_: int, api_key: str) -> List[dict]:
     """Retrieves the last 500(or less) matches of a player.
 
@@ -172,9 +155,8 @@ def collect(api_key: str):
     try:
         for id_ in id_retriever.get_ids(1000):
             matches = get_matches(id_, api_key)
-            players = extract_players(matches)
 
-            save_to_disk(matches, players, id_)
+            save_to_disk(matches, id_)
 
     except KeyboardInterrupt:
         save_to_disk(matches, id_)
