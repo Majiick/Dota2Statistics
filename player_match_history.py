@@ -165,6 +165,8 @@ def get_matches(id_: int, api_key: str) -> List[dict]:
 
 
 def collect(api_key: str):
+    """This function will pull player ids from the database and retrieve their last 500(or less) matches and put them into database.
+    """
     id_retriever = IDRetriever()
 
     try:
