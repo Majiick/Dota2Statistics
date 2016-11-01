@@ -3,16 +3,6 @@ CREATE TABLE IF NOT EXISTS Accounts(
   checked BOOLEAN DEFAULT 0
 );
 
-/*
-CREATE TABLE IF NOT EXISTS matches(
-  match_id INTEGER,
-  player_id INTEGER,
-  start_time INTEGER NOT NULL,
-  lobby_type INTEGER NOT NULL,
-
-  PRIMARY KEY (match_ID, player_ID)
-);
-*/
 
 CREATE TABLE IF NOT EXISTS matches(
   match_id INTEGER,
@@ -22,8 +12,9 @@ CREATE TABLE IF NOT EXISTS matches(
 
   originally_extracted_from_acc_match_history INTEGER, /* nice name tbh */
 
-  PRIMARY KEY (match_id, originally_extracted_from_acc_match_history)
+  PRIMARY KEY (match_id)
 );
+
 
 CREATE TABLE IF NOT EXISTS player_match(
   player_id INTEGER,
@@ -34,6 +25,7 @@ CREATE TABLE IF NOT EXISTS player_match(
   PRIMARY KEY (player_id, match_id),
   FOREIGN KEY(match_id) REFERENCES matches(match_id)
 );
+
 
 CREATE TABLE IF NOT EXISTS matches_detailed(
   radiant_win BOOLEAN,
