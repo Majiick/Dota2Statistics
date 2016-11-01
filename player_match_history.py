@@ -1,7 +1,8 @@
 """This module retrieves account ids from the table accounts and then retrieves their respective match history to store in table matches.
 
 TODO:
-    Retrieve and add every player from the match into player_match table.
+    -Retrieve and add every player from the match into player_match table.
+    -Multi-thread this module.
 """
 
 # noinspection PyUnresolvedReferences
