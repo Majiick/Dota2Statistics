@@ -27,4 +27,5 @@ def setup():
     conn.commit()
     return conn, cur
 
-setup()
+conn, cur = setup()
+conn.close()

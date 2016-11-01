@@ -1,7 +1,4 @@
 """This module retrieves account ids from the table accounts and then retrieves their respective match history to store in table matches.
-
-TODO:
-    Turn IDRetriever into a Generator.
 """
 
 # noinspection PyUnresolvedReferences
@@ -21,7 +18,24 @@ class IDRetriever:
     """
     lock = threading.Lock()
 
-    def get(self):
+    def get_ids(self, n: int) -> int:  # Does this generator need to be here? I think just get() will suffice, although idk.
+        """Generator to yield an unchecked id.
+        Args:
+            n: How many ids to yield.
+        Yields:
+            Yields an unchecked account_id.
+        """
+        i = 0
+
+        while i < n:
+            yield self.get_match()
+            i += 1
+
+    def get_match(self) -> int:
+        """Get an unchecked account_id.
+        Returns:
+            Returns an account id that hasn't been processed before and marks it as processed.
+        """
         with self.lock:
             conn, cur = database.get()
 
@@ -55,12 +69,12 @@ def save_to_disk(data: List[dict], account_id: int):
     conn.close()
 
 
-def get_last_matchid(data: dict):
+def get_last_matchid(data: dict) -> int:
     print(len(data["result"]["matches"]) - 1)
     return data["result"]["matches"][len(data["result"]["matches"]) - 1]["match_id"]
 
 
-def generate_params(last_requested_match: int, id_: int):
+def generate_params(last_requested_match: int, id_: int) -> str:
     """Generates the GET parameters for the get_match_history request.
 
         Args:
@@ -76,8 +90,15 @@ def generate_params(last_requested_match: int, id_: int):
     return params
 
 
-def get_match_batch(last_requested_match: int, id_: int):
+def get_match_batch(last_requested_match: int, id_: int) -> List[dict]:
     """Gets the batch of 100(or less) matches from the 500(or less) sequence returned by the get_match_history request.
+
+    Args:
+        id_: account id
+        last_requested_match: last_requested_match variable of the GetMatchHistory request.
+
+    Returns:
+        A batch of 100 matches as per id_ and last_requested_match.
     """
     params = generate_params(last_requested_match, id_)
 
@@ -117,26 +138,13 @@ def get_matches(id_: int) -> List[dict]:
 def main():
     id_retriever = IDRetriever()
 
-    conn, cur = database.setup()
-    cur.execute('SELECT ID FROM accounts')
-
     try:
-        # for _ in range(3000):
-            # id_ = id_retriever.get()  # id returns a tuple (id, )
-            # matches = get_matches(id_)
-            # save_to_disk(matches, id_)
-
-        for id_ in cur:
-            id_ = id_[0]  # id returns a tuple (id, )
+        for id_ in id_retriever.get_ids(1000):
             matches = get_matches(id_)
             save_to_disk(matches, id_)
-            print(id_retriever.get())
-
 
     except KeyboardInterrupt:
         save_to_disk(matches, id_)
-
-    # conn.close()
 
 if __name__ == "__main__":
     main()

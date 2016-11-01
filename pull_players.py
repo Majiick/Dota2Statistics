@@ -90,7 +90,7 @@ class Matches:
         self.last_seq_requested = starting_seq
         self.api_key = api_key
 
-    def next(self, n: int) -> dict:
+    def get_matches(self, n: int) -> dict:
         """Generator to yield the next match.
         Args:
             n: How many matches to yield.
@@ -146,7 +146,7 @@ def collect(starting_seq: int, api_key: str, player_counter: PlayerCollectionCou
 
     try:
         with AccountIDsBuffer(1000) as account_ids:
-            for match in match_retriever.next(100000):
+            for match in match_retriever.get_matches(100000):
                 for player in match["players"]:
                     if "account_id" in player:
                         account_ids.add(player["account_id"])
