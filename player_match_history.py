@@ -8,9 +8,10 @@ import json
 import time
 from info import *
 import database
-from connection import connect
+from connection import fetch
 from typing import List
 import threading
+from CollectionCounter import CollectionCounter
 
 
 class IDRetriever:
@@ -28,10 +29,10 @@ class IDRetriever:
         i = 0
 
         while i < n:
-            yield self.get_match()
+            yield self.get_id()
             i += 1
 
-    def get_match(self) -> int:
+    def get_id(self) -> int:
         """Get an unchecked account_id.
         Returns:
             Returns an account id that hasn't been processed before and marks it as processed.
@@ -62,8 +63,8 @@ def save_to_disk(matches: List[dict], account_id: int):
     conn, cur = database.get()
 
     for match in matches:
-        cur.execute('INSERT OR IGNORE INTO matches VALUES (?,?,?,?,?)',
-                    (match["match_id"], match["match_seq_num"], match["start_time"], match["lobby_type"], account_id))
+        cur.execute('INSERT OR IGNORE INTO matches VALUES (?,?,?,?,?,?)',
+                    (match["match_id"], match["match_seq_num"], match["start_time"], match["lobby_type"], account_id, 0))
         cur.execute('UPDATE Accounts SET checked=1 WHERE id=?', (account_id,))
 
         for player in match["players"]:
@@ -112,12 +113,7 @@ def get_match_batch(last_requested_match: int, id_: int, api_key: str) -> List[d
         A batch of 100 matches as per id_ and last_requested_match.
     """
     params = generate_params(last_requested_match, id_, api_key)
-
-    response = connect(GET_MATCH_HISTORY_URL, params)
-    while response is None:
-        time.sleep(10)
-        response = connect(GET_MATCH_HISTORY_URL, params)
-
+    response = fetch(GET_MATCH_HISTORY_URL, params)
     return response
 
 
@@ -147,7 +143,7 @@ def get_matches(id_: int, api_key: str) -> List[dict]:
     return matches
 
 
-def collect(api_key: str):
+def collect(api_key: str, matches_counter: CollectionCounter = None):
     """This function will pull player ids from the database and retrieve their last 500(or less) matches and put them into database.
     """
     id_retriever = IDRetriever()
@@ -155,6 +151,7 @@ def collect(api_key: str):
     try:
         for id_ in id_retriever.get_ids(1000):
             matches = get_matches(id_, api_key)
+            matches_counter.increment(len(matches))
 
             save_to_disk(matches, id_)
 
@@ -163,9 +160,11 @@ def collect(api_key: str):
 
 
 def main():
+    matches_counter = CollectionCounter()
+
     for i in range(1, 10):
         key = get_key()
-        t = threading.Thread(target=collect, args=(key, ), name=key)
+        t = threading.Thread(target=collect, args=(key, matches_counter), name=key)
         t.start()
         time.sleep(1 / 6)  # So requests are out of sync.
 

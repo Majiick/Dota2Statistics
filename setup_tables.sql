@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS matches(
   match_seq_num INTEGER,
   start_time INTEGER NOT NULL,
   lobby_type INTEGER NOT NULL,
+  checked BOOLEAN DEFAULT 0,
 
   originally_extracted_from_acc_match_history INTEGER, /* nice name tbh */
 
@@ -29,11 +30,11 @@ CREATE TABLE IF NOT EXISTS player_match(
 
 CREATE TABLE IF NOT EXISTS matches_detailed(
   radiant_win BOOLEAN,
-  duration INTEGER NOT NULL,
-  pre_game_duration INTEGER NOT NULL,
-  start_time INTEGER NOT NULL,
+  duration INTEGER,
+  pre_game_duration INTEGER,
+  start_time INTEGER,
   match_id INTEGER,
-  match_seq_num INTEGER NOT NULL UNIQUE,
+  match_seq_num INTEGER NOT NULL,
   tower_status_radiant INTEGER,
   tower_status_dire INTEGER,
   cluster INTEGER,

@@ -10,30 +10,9 @@ import json
 import time
 import threading
 import database
-from connection import connect
+from connection import fetch
 from info import *
-
-
-class PlayerCollectionCounter:
-    """Thread-safe class to keep count of the amount of players collected and print the average collection rate.
-    """
-    PRINT_FREQ = 1.0
-    lock = threading.Lock()
-
-    def __init__(self):
-        self.players = 0
-        self.timeStarted = time.time() - 1  # So we don't get ZeroDivisionError
-        self.print_collection_rate()
-
-    def increment(self, amount: int):
-        with self.lock:
-            self.players += amount
-
-    def print_collection_rate(self):
-        threading.Timer(self.PRINT_FREQ, self.print_collection_rate).start()
-
-        print("Average collection rate: {}/sec".format(int(self.players / (time.time() - self.timeStarted))))
-        print("{} seconds since start".format(int(time.time() - self.timeStarted)))
+from CollectionCounter import CollectionCounter
 
 
 class AccountIDsBuffer:
@@ -120,12 +99,7 @@ class Matches:
         time.sleep(1)
 
         params = urllib.parse.urlencode({'key': self.api_key, 'start_at_match_seq_num': self.last_seq_requested})
-
-        response = connect(GET_MATCH_HISTORY_SEQUENCE_URL, params)
-        while response is None:
-            time.sleep(10)
-            response = connect(GET_MATCH_HISTORY_SEQUENCE_URL, params)
-
+        response = fetch(GET_MATCH_HISTORY_SEQUENCE_URL, params)
         data = json.loads(response)
 
         for match in data["result"]["matches"]:
@@ -134,7 +108,7 @@ class Matches:
         self.last_seq_requested = self.get_last_seq_num(data)
 
 
-def collect(starting_seq: int, api_key: str, player_counter: PlayerCollectionCounter = None) -> None:
+def collect(starting_seq: int, api_key: str, player_counter: CollectionCounter = None) -> None:
     """This function will collect account ids until interrupted by a KeyboardInterrupt.
 
     Args:
@@ -157,7 +131,7 @@ def collect(starting_seq: int, api_key: str, player_counter: PlayerCollectionCou
 
 
 def main():
-    pc = PlayerCollectionCounter()
+    pc = CollectionCounter()
 
     for i in range(1, 25):  # Create 24 threads to collect players.
         key = get_key()

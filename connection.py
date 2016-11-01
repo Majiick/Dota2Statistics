@@ -3,6 +3,7 @@
 
 import urllib.request
 import urllib.parse
+import time
 
 
 def connect(url: str, params: str):
@@ -14,3 +15,12 @@ def connect(url: str, params: str):
             raise urllib.error.HTTPError
         print("Valve returned error {}.".format(err.code))
         return None
+
+
+def fetch(url: str, params: str, wait_interval: int = 10):
+    response = connect(url, params)
+    while response is None:
+        time.sleep(wait_interval)
+        response = connect(url, params)
+
+    return response
