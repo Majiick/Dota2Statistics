@@ -53,19 +53,19 @@ class IDRetriever:
             return id_
 
 
-def save_to_disk(matches: List[dict], account_id: int):
+def save_to_disk(matches: List[dict], extracted_from_account_id: int):
     """Saves the set of matches to the database.
 
     Args:
         matches: The list of MATCH dictionaries. The dictionaries adhere to the JSON structure.
-        account_id: The account id that was used to pull match history from.
+        extracted_from_account_id: The account id that was used to pull match history from.
     """
     conn, cur = database.get()
 
     for match in matches:
         cur.execute('INSERT OR IGNORE INTO matches VALUES (?,?,?,?,?,?)',
-                    (match["match_id"], match["match_seq_num"], match["start_time"], match["lobby_type"], account_id, 0))
-        cur.execute('UPDATE Accounts SET checked=1 WHERE id=?', (account_id,))
+                    (match["match_id"], match["match_seq_num"], match["start_time"], match["lobby_type"], extracted_from_account_id, 0))
+        cur.execute('UPDATE Accounts SET checked=1 WHERE id=?', (extracted_from_account_id,))
 
         for player in match["players"]:
             try:
@@ -152,7 +152,7 @@ def collect(api_key: str, matches_counter: CollectionCounter = None):
         for id_ in id_retriever.get_ids(1000):
             matches = get_matches(id_, api_key)
             matches_counter.increment(len(matches))
-
+            print(id_)
             save_to_disk(matches, id_)
 
     except KeyboardInterrupt:
@@ -162,7 +162,7 @@ def collect(api_key: str, matches_counter: CollectionCounter = None):
 def main():
     matches_counter = CollectionCounter()
 
-    for i in range(1, 10):
+    for i in range(1, 2):
         key = get_key()
         t = threading.Thread(target=collect, args=(key, matches_counter), name=key)
         t.start()
