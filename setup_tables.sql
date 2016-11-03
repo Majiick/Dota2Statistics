@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS player_match(
 
 
 CREATE TABLE IF NOT EXISTS matches_detailed(
+  /*season*/
   radiant_win BOOLEAN,
   duration INTEGER,
   pre_game_duration INTEGER,
@@ -52,4 +53,36 @@ CREATE TABLE IF NOT EXISTS matches_detailed(
 
   PRIMARY KEY (match_id),
   FOREIGN KEY(match_id) REFERENCES matches(match_id)
+);
+
+CREATE TABLE IF NOT EXISTS player_match_detailed(
+  account_id INTEGER,
+  player_slot INTEGER,
+  hero_id INTEGER,
+  item_0 INTEGER,
+  item_1 INTEGER,
+  item_2 INTEGER,
+  item_3 INTEGER,
+  item_4 INTEGER,
+  item_5 INTEGER,
+  kills INTEGER,
+  deaths INTEGER,
+  assists INTEGER,
+  leaver_status INTEGER,
+  gold INTEGER,
+  last_hits INTEGER,
+  denies INTEGER,
+  gold_per_min INTEGER,
+  xp_per_min INTEGER,
+  gold_spent INTEGER,
+  hero_damage INTEGER,
+  tower_damage INTEGER,
+  hero_healing INTEGER,
+  level INTEGER,
+  match_id INTEGER,
+
+  PRIMARY KEY (account_id, match_id),
+  FOREIGN KEY(match_id) REFERENCES matches(match_id)
+  /*ability upgrades*/
+  /*additional_units*/
 );
