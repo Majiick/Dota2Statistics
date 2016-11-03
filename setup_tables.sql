@@ -9,9 +9,9 @@ CREATE TABLE IF NOT EXISTS matches(
   match_seq_num INTEGER,
   start_time INTEGER NOT NULL,
   lobby_type INTEGER NOT NULL,
-  checked BOOLEAN DEFAULT 0,
-
   originally_extracted_from_acc_match_history INTEGER, /* nice name tbh */
+
+  checked BOOLEAN DEFAULT 0,
 
   PRIMARY KEY (match_id)
 );

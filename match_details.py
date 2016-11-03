@@ -1,4 +1,8 @@
 """This module pulls matches from the matches table and gets detailed information on them and saves it in the database.
+
+TODO:
+Fix the sql schema, season isn't included.
+And also store all the data about the player such as item, level, abilities whatever etc.
 """
 
 import urllib.request

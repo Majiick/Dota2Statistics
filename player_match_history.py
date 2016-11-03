@@ -162,7 +162,7 @@ def collect(api_key: str, matches_counter: CollectionCounter = None):
 def main():
     matches_counter = CollectionCounter()
 
-    for i in range(1, 2):
+    for i in range(1, 20):
         key = get_key()
         t = threading.Thread(target=collect, args=(key, matches_counter), name=key)
         t.start()
