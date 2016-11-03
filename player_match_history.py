@@ -45,6 +45,8 @@ class IDRetriever:
             id_ = None
             for x in cur:
                 id_ = x[0]
+            if id_ is None:
+                raise LookupError
 
             cur.execute('UPDATE Accounts SET checked=1 WHERE id=?', (id_,))
             conn.commit()
