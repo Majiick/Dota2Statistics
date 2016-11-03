@@ -20,5 +20,5 @@ class CollectionCounter:
     def print_collection_rate(self):
         threading.Timer(self.print_freq, self.print_collection_rate).start()
 
-        # print("Average collection rate: {}/sec".format(int(self.count / (time.time() - self.timeStarted))))
-        # print("{} seconds since start".format(int(time.time() - self.timeStarted)))
+        print("Average collection rate: {}/sec".format(int(self.count / (time.time() - self.timeStarted))))
+        print("{} seconds since start".format(int(time.time() - self.timeStarted)))
