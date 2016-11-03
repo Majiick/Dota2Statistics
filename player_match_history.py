@@ -81,8 +81,11 @@ def save_to_disk(matches: List[dict], extracted_from_account_id: int):
 
 
 def get_last_matchid(data: dict) -> int:
-    print(len(data["result"]["matches"]) - 1)
-    return data["result"]["matches"][len(data["result"]["matches"]) - 1]["match_id"]
+    try:
+        # print(len(data["result"]["matches"]) - 1)
+        return data["result"]["matches"][len(data["result"]["matches"]) - 1]["match_id"]
+    except IndexError:
+        raise ValueError
 
 
 def generate_params(last_requested_match: int, id_: int, api_key: str) -> str:
@@ -134,8 +137,15 @@ def get_matches(id_: int, api_key: str) -> List[dict]:
 
         response = get_match_batch(last_requested_match, id_, api_key)
         data = json.loads(response)
-        matches.extend(data["result"]["matches"])
-        last_requested_match = get_last_matchid(data)
+        try:
+            matches.extend(data["result"]["matches"])
+        except KeyError:
+            continue
+
+        try:
+            last_requested_match = get_last_matchid(data)
+        except ValueError:
+            continue
 
         if data["result"]["results_remaining"] == 0 or data["result"]["num_results"] == 0:
             break
@@ -152,7 +162,7 @@ def collect(api_key: str, matches_counter: CollectionCounter = None):
         for id_ in id_retriever.get_ids(1000):
             matches = get_matches(id_, api_key)
             matches_counter.increment(len(matches))
-            print(id_)
+            # print(id_)
             save_to_disk(matches, id_)
 
     except KeyboardInterrupt:
