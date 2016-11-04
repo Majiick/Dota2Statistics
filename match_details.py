@@ -14,6 +14,7 @@ from info import *
 from connection import fetch
 import threading
 from CollectionCounter import CollectionCounter
+from collections import namedtuple
 
 
 class MatchIDRetriever:
@@ -58,11 +59,13 @@ class MatchIDRetriever:
 def save_to_disk(data: dict):
     conn, cur = database.get()
 
-    fields = ("radiant_win", "duration", "pre_game_duration", "start_time", "match_id", "match_seq_num", "tower_status_radiant", "tower_status_dire", "cluster", "first_blood_time", "lobby_type", "human_players",
-              "leagueid", "positive_votes", "negative_votes", "game_mode", "flags", "engine", "radiant_score", "dire_score")
+    # I use it 'cause it's fancy and I want to remember namedtuples in the future :)
+    fields = namedtuple('Fields', ["radiant_win", "duration", "pre_game_duration", "start_time", "match_id", "match_seq_num",
+                                   "tower_status_radiant", "tower_status_dire", "cluster", "first_blood_time", "lobby_type", "human_players",
+                                    "leagueid", "positive_votes", "negative_votes", "game_mode", "flags", "engine", "radiant_score", "dire_score"])
 
     try:
-        extracted_data = [int(data["result"][k]) for k in fields]
+        extracted_data = [int(data["result"][k]) for k in fields._fields]
         cur.execute('INSERT OR IGNORE INTO matches_detailed VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                     extracted_data)
     except KeyError:
