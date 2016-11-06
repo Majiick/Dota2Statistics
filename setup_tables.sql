@@ -56,7 +56,7 @@ CREATE TABLE IF NOT EXISTS matches_detailed(
 );
 
 CREATE TABLE IF NOT EXISTS player_match_detailed(
-  account_id INTEGER,
+  account_id INTEGER DEFAULT -1,
   player_slot INTEGER,
   hero_id INTEGER,
   item_0 INTEGER,
@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS player_match_detailed(
   kills INTEGER,
   deaths INTEGER,
   assists INTEGER,
-  leaver_status INTEGER,
+  leaver_status INTEGER DEFAULT -1,
   gold INTEGER,
   last_hits INTEGER,
   denies INTEGER,
@@ -85,4 +85,16 @@ CREATE TABLE IF NOT EXISTS player_match_detailed(
   FOREIGN KEY(match_id) REFERENCES matches(match_id)
   /*ability upgrades*/
   /*additional_units*/
+);
+
+CREATE TABLE IF NOT EXISTS ability_upgrade(
+  ability INTEGER,
+  time INTEGER,
+  level INTEGER,
+  account_id INTEGER,
+  match_id INTEGER,
+
+  PRIMARY KEY(account_id, match_id),
+  FOREIGN KEY(account_id) REFERENCES player_match_detailed(account_id),
+  FOREIGN KEY(match_id) REFERENCES player_match_detailed(match_id)
 );

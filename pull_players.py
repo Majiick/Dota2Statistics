@@ -95,7 +95,7 @@ class Matches:
     def _request_matches(self) -> None:
         """Requests (500) matches from Valve and updates self.matches with the retrieved matches.
         """
-        print("Sequence#: {}".format(self.last_seq_requested))
+        # print("Sequence#: {}".format(self.last_seq_requested))
         time.sleep(1)
 
         params = urllib.parse.urlencode({'key': self.api_key, 'start_at_match_seq_num': self.last_seq_requested})

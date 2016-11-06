@@ -56,35 +56,102 @@ class MatchIDRetriever:
             return id_
 
 
-def save_to_disk(data: dict):
-    conn, cur = database.get()
+class Table:
+    def __init__(self, name: str, fields: tuple):
+        self.name = name
+        self.fields = fields
 
-    # I use it 'cause it's fancy and I want to remember namedtuples in the future :)
-    fields = namedtuple('Fields', ["radiant_win", "duration", "pre_game_duration", "start_time", "match_id", "match_seq_num",
-                                   "tower_status_radiant", "tower_status_dire", "cluster", "first_blood_time", "lobby_type", "human_players",
-                                    "leagueid", "positive_votes", "negative_votes", "game_mode", "flags", "engine", "radiant_score", "dire_score"])
+    def construct_insert(self):
+        return "INSERT OR IGNORE INTO {0} VALUES ({1})".format(self.name, ("?,"*len(self.fields))[:-1])
+
+
+def save_to_disk_matches_detailed(data : dict, cur):
+    # I use it 'cause it's fancy and I want to remember namedtuples in the future :) This is a gross misuse though.
+    fields = namedtuple('matches_detailed_fields',
+                        ["radiant_win", "duration", "pre_game_duration", "start_time", "match_id", "match_seq_num",
+                         "tower_status_radiant", "tower_status_dire", "cluster", "first_blood_time", "lobby_type",
+                         "human_players",
+                         "leagueid", "positive_votes", "negative_votes", "game_mode", "flags", "engine",
+                         "radiant_score", "dire_score"])
+
+    table = Table("matches_detailed", fields._fields)
+
+    extracted_data = [data["result"][k] for k in fields._fields]
 
     try:
-        extracted_data = [int(data["result"][k]) for k in fields._fields]
-        cur.execute('INSERT OR IGNORE INTO matches_detailed VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        cur.execute(table.construct_insert(),
                     extracted_data)
     except KeyError:
         pass
+
+
+def save_to_disk_player_match_detailed(data : dict, cur):
+    fields = namedtuple('player_match_detailed_fields',
+                        ["account_id", "player_slot", "hero_id", "item_0", "item_1", "item_2", "item_3",
+                         "item_4", "item_5", "kills", "deaths", "assists", "leaver_status", "gold", "last_hits", "denies",
+                         "gold_per_min", "xp_per_min", "gold_spent", "hero_damage", "tower_damage", "hero_healing",
+                         "level", "match_id"])
+    field_positions = dict(zip(fields._fields, range(len(fields._fields))))
+
+    table = Table("player_match_detailed", fields._fields)
+
+    for player in data["result"]["players"]:
+        extracted_data = list(map(player.get, fields._fields))
+        extracted_data = [x if x else -1 for x in extracted_data]
+        extracted_data[field_positions["match_id"]] = data["result"]["match_id"]  # Set match_id
+
+        try:
+            cur.execute(
+                table.construct_insert(),
+                extracted_data)
+        except KeyError:
+            pass
+
+
+def save_to_disk_ability_upgrade(data : dict, cur):
+    fields = namedtuple('ability_upgrade_fields',
+                        ["ability", "time", "level", "account_id", "match_id"])
+    field_positions = dict(zip(fields._fields, range(len(fields._fields))))
+
+    table = Table("ability_upgrade", fields._fields)
+
+    for player in data["result"]["players"]:
+        for ability_upgrade in player["ability_upgrades"]:
+            extracted_data = list(map(ability_upgrade.get, fields._fields))
+
+            if "account_id" in player:
+                extracted_data[field_positions["account_id"]] = player["account_id"]
+            else:
+                extracted_data[field_positions["account_id"]] = -1
+
+            extracted_data[field_positions["match_id"]] = data["result"]["match_id"]
+
+            cur.execute(
+                table.construct_insert(),
+                extracted_data)
+
+
+def save_to_disk(data: dict):
+    conn, cur = database.get()
+
+    save_to_disk_matches_detailed(data, cur)
+    save_to_disk_player_match_detailed(data, cur)
+    save_to_disk_ability_upgrade(data, cur)
 
     conn.commit()
     conn.close()
 
 
-def collect(api_key: int, matche_details_counter: CollectionCounter = None):
+def collect(api_key: int, match_details_counter: CollectionCounter = None):
     match_retriever = MatchIDRetriever()
 
     try:
-        for id_ in match_retriever.get_ids(1000):
+        for id_ in match_retriever.get_ids(100000):
             params = urllib.parse.urlencode({'key': api_key, 'match_id': id_})
             response = fetch(GET_MATCH_DETAILS_URL, params)
 
             data = json.loads(response)
-            matche_details_counter.increment(1)
+            match_details_counter.increment(1)
             save_to_disk(data)
 
     except KeyboardInterrupt:

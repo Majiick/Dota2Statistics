@@ -2,6 +2,8 @@
 """
 
 import database
+import plotly
+from plotly.graph_objs import Bar, Layout
 
 # fields = ("radiant_win", "duration", "pre_game_duration", "start_time", "match_id", "match_seq_num", "tower_status_radiant", "tower_status_dire", "cluster", "first_blood_time", "lobby_type", "human_players",
 #               "leagueid", "positive_votes", "negative_votes", "game_mode", "flags", "engine", "radiant_score", "dire_score", "player_id", "day")
@@ -9,19 +11,19 @@ break_time_hours = 8
 
 fields = ("match_id", "match_seq_num", "start_time", "lobby_type", "originally_extracted_from_acc_match_history", "checked", "player_slot", "radiant_win", "day")
 
-fieldPositions = dict()
-for k, f in enumerate(fields):
-    fieldPositions[f] = k
-
+fieldPositions = dict(zip(fields, range(len(fields))))
 
 conn, cur = database.get()
+cur.execute("PRAGMA max_page_count = 2147483646")
 cur.execute('''
              SELECT M.*, PM.player_slot, MD.radiant_win FROM matches M
              INNER JOIN player_match PM ON M.match_id=PM.match_id AND M.originally_extracted_from_acc_match_history=PM.player_id
-             WHERE MD.lobby_type IN (0, 2, 5, 6, 7)
+             INNER JOIN matches_detailed MD ON M.match_id=MD.match_id
+             WHERE MD.lobby_type IN (0, 2, 5, 6, 7) AND game_mode IN (1,2,3,4,5,12,13,14,16,22)
              ORDER BY M.start_time ASC
              ''')
 
+print("Select statement done.")
 # cur.execute('''
 #             SELECT * FROM matches
 #             ''')
@@ -117,7 +119,25 @@ for p, gameOfDay in playx.items():
 
         gameOfTheDay[day].extend(matchBool)
 
+plotlyRepresentation = dict()  # dict[day] -> average winrate
+i = 0
+firstDay = int()
+
 for day, matches in gameOfTheDay.items():
     # print(len(matches), len([x for x in matches if x == 1]))
     print(day, sum(matches) / float(len(matches)))
+    if day not in plotlyRepresentation:
+        if i == 0:  # Ternary statement?
+            firstDay = sum(matches) / float(len(matches))
+        else:
+            plotlyRepresentation[day] = firstDay - (sum(matches) / float(len(matches)))
 
+    i += 1
+
+t = [str(x) for x in plotlyRepresentation.keys()]
+u = [str(x) for x in plotlyRepresentation.values()]
+
+plotly.offline.plot({
+    "data": [Bar(x=t[:-5], y=u[:-5])],
+    "layout": Layout(title="hello world")
+})
