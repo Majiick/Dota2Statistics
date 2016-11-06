@@ -116,6 +116,9 @@ def save_to_disk_ability_upgrade(data : dict, cur):
     table = Table("ability_upgrade", fields._fields)
 
     for player in data["result"]["players"]:
+        if "ability_upgrades" not in player:
+            continue
+
         for ability_upgrade in player["ability_upgrades"]:
             extracted_data = list(map(ability_upgrade.get, fields._fields))
 

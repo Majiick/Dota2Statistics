@@ -83,8 +83,6 @@ CREATE TABLE IF NOT EXISTS player_match_detailed(
 
   PRIMARY KEY (account_id, match_id),
   FOREIGN KEY(match_id) REFERENCES matches(match_id)
-  /*ability upgrades*/
-  /*additional_units*/
 );
 
 CREATE TABLE IF NOT EXISTS ability_upgrade(
